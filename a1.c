@@ -12,18 +12,29 @@
  */
 void generate_selections(int a[], int n, int k, int b[], void *data, void (*process_selection)(int *b, int k, void *data))
 {
-    b[0] = 2; b[1] = 1;
-    process_selection(b, 2, data);
-    b[0] = 2; b[1] = 6;
-    process_selection(b, 2, data);
-    b[0] = 2; b[1] = 5;
-    process_selection(b, 2, data);
-    b[0] = 1; b[1] = 6;
-    process_selection(b, 2, data);
-    b[0] = 1; b[1] = 5;
-    process_selection(b, 2, data);
-    b[0] = 6; b[1] = 5;
-    process_selection(b, 2, data);
+        if (k <= 0) {
+        return;
+    }
+    int indices[k];
+    for (int i = 0; i < k; i++) {
+        indices[i] = i;
+        b[i] = a[i];
+    }
+    while (indices[0] != n - k) {
+        process_selection(b, k, data);
+        int rightmost = k - 1;
+        while (rightmost >= 0 && indices[rightmost] == n - k + rightmost) {
+            rightmost--;
+        }
+        indices[rightmost]++;
+        for (int i = rightmost + 1; i < k; i++) {
+            indices[i] = indices[i - 1] + 1;
+        }
+        for (int i = 0; i < k; i++) {
+            b[i] = a[indices[i]];
+        }
+    }
+    process_selection(b, k, data);
 }
 
 /*
@@ -34,29 +45,84 @@ void generate_selections(int a[], int n, int k, int b[], void *data, void (*proc
  * The dictionary parameter is an array of words, sorted in dictionary order.
  * nwords is the number of words in this dictionary.
  */
-void generate_splits(const char *source, const char *dictionary[], int nwords, char buf[], void *data, void (*process_split)(char buf[], void *data))
+void generate_splits_helper(const char *source, const char *dictionary[], int nwords, char buf[], int sourceIndex, int bufIndex, void *data, void (*process_split)(char buf[], void *data))
 {
-    strcpy(buf, "art is toil");
-    process_split(buf, data);
-    strcpy(buf, "artist oil");
-    process_split(buf, data);
+    if (sourceIndex == strlen(source)) {
+        buf[bufIndex] = '\0';
+        process_split(buf, data);
+        return;
+    }
+
+    char word[100]; 
+    int wordIndex;
+    wordIndex = 0; 
+
+    while (sourceIndex < strlen(source)) {
+        word[wordIndex] = source[sourceIndex];
+        wordIndex++;
+        sourceIndex++;
+        word[wordIndex] = '\0';
+        int i =0;
+        while(i<nwords) {
+            if (strcmp(word, dictionary[i]) == 0) {
+                strcpy(buf + bufIndex, word);
+                bufIndex += strlen(word);
+                if (sourceIndex < strlen(source)) {
+                    buf[bufIndex] = ' ';
+                    bufIndex++;
+                }
+
+                generate_splits_helper(source, dictionary, nwords, buf, sourceIndex, bufIndex, data, process_split);
+
+                bufIndex -= strlen(word);
+                if (sourceIndex < strlen(source)) {
+                    bufIndex--;
+                }
+            }
+            i++;
+        }
+    }
 }
 
-/*
+void generate_splits(const char *source, const char *dictionary[], int nwords, char buf[], void *data, void (*process_split)(char buf[], void *data))
+{
+    int sourceIndex = 0;
+    int bufIndex = 0;
+    generate_splits_helper(source, dictionary, nwords, buf, sourceIndex, bufIndex, data, process_split);
+}/*
  * Transform a[] so that it becomes the previous permutation of the elements in it.
  * If a[] is the first permutation, leave it unchanged.
  */
-void previous_permutation(int a[], int n)
-{
-    a[0] = 1;
-    a[1] = 5;
-    a[2] = 4;
-    a[3] = 6;
-    a[4] = 3;
-    a[5] = 2;
+//defining the swap function
+void swap(int *a, int *b) {
+    int c = *a;
+    *a = *b;
+    *b = c;
 }
-
-/* Write your tests here. Use the previous assignment for reference. */
+//defining the reverse function
+void reverse(int a[], int start, int end) {
+    while (start < end) {
+        swap(&a[start], &a[end]);
+        start++;
+        end--;
+    }
+}
+int previous_permutation(int a[], int n) {
+    int i = n - 2;
+    while (i >= 0 && a[i] <= a[i + 1]) {
+        i--;
+    }
+    if (i < 0) {
+        return 0; 
+    }
+    int j = n - 1;
+    while (a[j] >= a[i]) {
+        j--;
+    }
+    swap(&a[i], &a[j]);
+    reverse(a, i + 1, n - 1);
+    return 1;
+}/* Write your tests here. Use the previous assignment for reference. */
 
 typedef struct {
     int index;
@@ -110,7 +176,7 @@ static void test_selections_2165(int b[], int k, void *data)
 
 void count_selections(int b[], int k, void *data)
 {
-    int *d = (int*)data;
+    int d = (int)data;
     ++*d;
 }
 
@@ -120,7 +186,7 @@ typedef struct {
 
 void last_selection(int b[], int k, void *data)
 {
-    selection_t *s = (selection_t*)data;
+    selection_t s = (selection_t)data;
     for (int i = 0; i < k; ++i) {
         s->b[i] = b[i];
     }
@@ -144,7 +210,7 @@ BEGIN_TEST(generate_selections) {
 
 void test_splits_art(char buf[], void *data)
 {
-    state_t *s = (state_t*)data;
+    state_t s = (state_t)data;
     if (s->first) {
         s->err = 0;
         s->first = 0;
